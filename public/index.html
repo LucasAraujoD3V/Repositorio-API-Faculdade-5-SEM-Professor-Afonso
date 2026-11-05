@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CRUD de Alunos</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <main class="container">
+        <h1>CRUD de Alunos</h1>
+
+        <section class="card">
+            <div class="titulo-lista">
+                <h2>Status do servidor</h2>
+                <button id="verificarStatus">Verificar</button>
+            </div>
+            <p id="statusServidor">Verificando...</p>
+        </section>
+
+        <section class="card">
+            <h2>Login</h2>
+            <form id="formLogin">
+                <input id="usuario" placeholder="Usuario" required>
+                <input id="senha" type="password" placeholder="Senha" required>
+                <button type="submit">Entrar</button>
+                <button type="button" id="sair">Sair</button>
+            </form>
+            <p id="statusLogin">Nao autenticado</p>
+        </section>
+
+        <section class="card">
+            <h2>Aluno</h2>
+            <form id="formAluno">
+                <input type="hidden" id="alunoId">
+                <input id="nome" placeholder="Nome" required>
+                <input id="curso" placeholder="Curso" required>
+                <button type="submit">Salvar</button>
+                <button type="button" id="cancelarEdicao">Cancelar</button>
+            </form>
+        </section>
+
+        <section class="card">
+            <div class="titulo-lista">
+                <h2>Alunos cadastrados</h2>
+                <button id="recarregar">Recarregar</button>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Nome</th>
+                        <th>Curso</th>
+                        <th>Acoes</th>
+                    </tr>
+                </thead>
+                <tbody id="listaAlunos"></tbody>
+            </table>
+        </section>
+    </main>
+    <script src="app.js"></script>
+</body>
+</html>
