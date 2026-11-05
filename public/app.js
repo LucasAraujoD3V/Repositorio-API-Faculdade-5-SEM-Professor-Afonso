@@ -5,15 +5,45 @@ const formLogin = document.getElementById('formLogin');
 const formAluno = document.getElementById('formAluno');
 const listaAlunos = document.getElementById('listaAlunos');
 const statusLogin = document.getElementById('statusLogin');
+const tokenAtual = document.getElementById('tokenAtual');
+const ultimaResposta = document.getElementById('ultimaResposta');
 const statusServidor = document.getElementById('statusServidor');
 const alunoId = document.getElementById('alunoId');
 const nome = document.getElementById('nome');
 const curso = document.getElementById('curso');
 
-function atualizarStatusLogin() {
-    statusLogin.textContent = token
-        ? 'Autenticado'
-        : 'Nao autenticado';
+const textosStatus = {
+    200: 'OK',
+    201: 'Created',
+    400: 'Bad Request',
+    401: 'Unauthorized',
+    404: 'Not Found',
+    500: 'Internal Server Error'
+};
+
+function registrarResposta(metodo, url, resposta, mensagem) {
+    const texto = textosStatus[resposta.status] || '';
+    ultimaResposta.className = resposta.ok ? 'online' : 'offline';
+    ultimaResposta.textContent =
+        `${metodo} ${url} -> ${resposta.status} ${texto}` +
+        (mensagem ? ` | ${mensagem}` : '');
+}
+
+function atualizarStatusLogin(mensagem, sucesso) {
+    if (mensagem) {
+        statusLogin.textContent = mensagem;
+        statusLogin.className = sucesso ? 'online' : 'offline';
+    }
+    else {
+        statusLogin.textContent = token ? 'Autenticado' : 'Nao autenticado';
+        statusLogin.className = token ? 'online' : 'offline';
+    }
+
+    tokenAtual.textContent = token || 'nenhum';
+
+    document.querySelectorAll('.acao').forEach((botao) => {
+        botao.disabled = !token;
+    });
 }
 
 function cabecalhosProtegidos() {
@@ -23,11 +53,11 @@ function cabecalhosProtegidos() {
     };
 }
 
-function tratarNaoAutorizado(resposta) {
+function tratarNaoAutorizado(resposta, mensagem) {
     if (resposta.status === 401) {
         token = '';
         localStorage.removeItem('token');
-        atualizarStatusLogin();
+        atualizarStatusLogin(`Erro 401: ${mensagem}`, false);
     }
 }
 
@@ -63,13 +93,19 @@ formLogin.addEventListener('submit', async (evento) => {
     const dados = await resposta.json();
 
     if (!resposta.ok) {
-        alert(dados.mensagem || 'Falha no login');
+        const mensagem = dados.mensagem || 'Falha no login';
+        registrarResposta('POST', '/login', resposta, mensagem);
+        token = '';
+        localStorage.removeItem('token');
+        atualizarStatusLogin(`Erro ${resposta.status}: ${mensagem}`, false);
+        alert(`Erro ${resposta.status}: ${mensagem}`);
         return;
     }
 
     token = dados.token;
     localStorage.setItem('token', token);
-    atualizarStatusLogin();
+    registrarResposta('POST', '/login', resposta, 'Token gerado');
+    atualizarStatusLogin(`Autenticado (${resposta.status} ${textosStatus[resposta.status]})`, true);
 });
 
 document.getElementById('sair').addEventListener('click', () => {
@@ -83,10 +119,13 @@ async function carregarAlunos() {
     const alunos = await resposta.json();
 
     if (!resposta.ok) {
-        alert(alunos.mensagem || 'Erro ao carregar alunos');
+        const mensagem = alunos.mensagem || 'Erro ao carregar alunos';
+        registrarResposta('GET', '/alunos', resposta, mensagem);
+        alert(`Erro ${resposta.status}: ${mensagem}`);
         return;
     }
 
+    registrarResposta('GET', '/alunos', resposta, `${alunos.length} aluno(s)`);
     alunosCache = alunos;
     listaAlunos.innerHTML = '';
 
@@ -103,10 +142,14 @@ async function carregarAlunos() {
 
         const botaoEditar = document.createElement('button');
         botaoEditar.textContent = 'Editar';
+        botaoEditar.className = 'acao';
+        botaoEditar.disabled = !token;
         botaoEditar.addEventListener('click', () => editarAluno(aluno._id));
 
         const botaoExcluir = document.createElement('button');
         botaoExcluir.textContent = 'Excluir';
+        botaoExcluir.className = 'acao';
+        botaoExcluir.disabled = !token;
         botaoExcluir.addEventListener('click', () => excluirAluno(aluno._id));
 
         colunaAcoes.append(botaoEditar, botaoExcluir);
@@ -141,16 +184,24 @@ formAluno.addEventListener('submit', async (evento) => {
     const dados = await resposta.json();
 
     if (!resposta.ok) {
-        tratarNaoAutorizado(resposta);
-        alert(dados.mensagem || 'Erro ao salvar');
+        const mensagem = dados.mensagem || 'Erro ao salvar';
+        registrarResposta(metodo, url, resposta, mensagem);
+        tratarNaoAutorizado(resposta, mensagem);
+        alert(`Erro ${resposta.status}: ${mensagem}`);
         return;
     }
 
     limparFormulario();
     await carregarAlunos();
+    registrarResposta(metodo, url, resposta, id ? 'Aluno atualizado' : 'Aluno cadastrado');
 });
 
 function editarAluno(id) {
+    if (!token) {
+        alert('Faca login antes de editar.');
+        return;
+    }
+
     const aluno = alunosCache.find((item) => item._id === id);
     if (!aluno) return;
 
@@ -168,7 +219,8 @@ async function excluirAluno(id) {
     const confirmou = confirm('Deseja realmente excluir este aluno?');
     if (!confirmou) return;
 
-    const resposta = await fetch(`/alunos/${id}`, {
+    const url = `/alunos/${id}`;
+    const resposta = await fetch(url, {
         method: 'DELETE',
         headers: {
             'Authorization': `Bearer ${token}`
@@ -178,12 +230,15 @@ async function excluirAluno(id) {
     const dados = await resposta.json();
 
     if (!resposta.ok) {
-        tratarNaoAutorizado(resposta);
-        alert(dados.mensagem || 'Erro ao excluir');
+        const mensagem = dados.mensagem || 'Erro ao excluir';
+        registrarResposta('DELETE', url, resposta, mensagem);
+        tratarNaoAutorizado(resposta, mensagem);
+        alert(`Erro ${resposta.status}: ${mensagem}`);
         return;
     }
 
     await carregarAlunos();
+    registrarResposta('DELETE', url, resposta, dados.mensagem);
 }
 
 function limparFormulario() {

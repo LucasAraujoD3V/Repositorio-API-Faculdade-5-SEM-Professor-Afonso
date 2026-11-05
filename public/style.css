@@ -72,3 +72,17 @@ td button {
     color: #c62828;
     font-weight: bold;
 }
+
+code {
+    display: block;
+    background: #f0f2f5;
+    padding: 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    word-break: break-all;
+}
+
+button:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+}
