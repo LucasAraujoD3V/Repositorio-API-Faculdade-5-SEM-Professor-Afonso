@@ -1,16 +1,15 @@
 let token = localStorage.getItem('token') || '';
-let alunosCache = [];
+let tecnologiasCache = [];
 
-const formLogin = document.getElementById('formLogin');
-const formAluno = document.getElementById('formAluno');
-const listaAlunos = document.getElementById('listaAlunos');
-const statusLogin = document.getElementById('statusLogin');
+const log = document.getElementById('log');
 const tokenAtual = document.getElementById('tokenAtual');
-const ultimaResposta = document.getElementById('ultimaResposta');
 const statusServidor = document.getElementById('statusServidor');
-const alunoId = document.getElementById('alunoId');
+const listaTecnologias = document.getElementById('listaTecnologias');
+const tituloForm = document.getElementById('tituloForm');
+const tecnologiaId = document.getElementById('tecnologiaId');
 const nome = document.getElementById('nome');
-const curso = document.getElementById('curso');
+const base = document.getElementById('base');
+const curvaAprendizado = document.getElementById('curvaAprendizado');
 
 const textosStatus = {
     200: 'OK',
@@ -18,247 +17,179 @@ const textosStatus = {
     400: 'Bad Request',
     401: 'Unauthorized',
     404: 'Not Found',
+    409: 'Conflict',
     500: 'Internal Server Error'
 };
 
-function registrarResposta(metodo, url, resposta, mensagem) {
-    const texto = textosStatus[resposta.status] || '';
-    ultimaResposta.className = resposta.ok ? 'online' : 'offline';
-    ultimaResposta.textContent =
-        `${metodo} ${url} -> ${resposta.status} ${texto}` +
-        (mensagem ? ` | ${mensagem}` : '');
+// Mostra cada requisicao na tela: metodo, url, status, SUCESSO/ERRO e a resposta
+function registrar(metodo, url, status, sucesso, dados) {
+    const item = document.createElement('li');
+    item.className = sucesso ? 'sucesso' : 'erro';
+
+    const titulo = document.createElement('strong');
+    titulo.textContent =
+        `${new Date().toLocaleTimeString()} | ${metodo} ${url} -> ` +
+        `${status} ${textosStatus[status] || ''} | ${sucesso ? 'SUCESSO' : 'ERRO'}`;
+
+    const resposta = document.createElement('pre');
+    resposta.textContent = JSON.stringify(dados, null, 2);
+
+    item.append(titulo, resposta);
+    log.prepend(item);
 }
 
-function atualizarStatusLogin(mensagem, sucesso) {
-    if (mensagem) {
-        statusLogin.textContent = mensagem;
-        statusLogin.className = sucesso ? 'online' : 'offline';
-    }
-    else {
-        statusLogin.textContent = token ? 'Autenticado' : 'Nao autenticado';
-        statusLogin.className = token ? 'online' : 'offline';
-    }
-
-    tokenAtual.textContent = token || 'nenhum';
-
-    document.querySelectorAll('.acao').forEach((botao) => {
-        botao.disabled = !token;
-    });
-}
-
-function cabecalhosProtegidos() {
-    return {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
+// Faz a requisicao para a API (manda o token se tiver) e registra o resultado
+async function chamarApi(metodo, url, corpo) {
+    const opcoes = {
+        method: metodo,
+        headers: { 'Content-Type': 'application/json' }
     };
+
+    if (token) opcoes.headers['Authorization'] = `Bearer ${token}`;
+    if (corpo) opcoes.body = JSON.stringify(corpo);
+
+    try {
+        const resposta = await fetch(url, opcoes);
+        const dados = await resposta.json();
+        registrar(metodo, url, resposta.status, resposta.ok, dados);
+
+        if (resposta.status === 401) {
+            token = '';
+            localStorage.removeItem('token');
+            mostrarToken();
+        }
+
+        return { ok: resposta.ok, dados };
+    }
+    catch(error) {
+        registrar(metodo, url, 0, false, { mensagem: 'Servidor offline' });
+        return { ok: false, dados: {} };
+    }
 }
 
-function tratarNaoAutorizado(resposta, mensagem) {
-    if (resposta.status === 401) {
-        token = '';
-        localStorage.removeItem('token');
-        atualizarStatusLogin(`Erro 401: ${mensagem}`, false);
-    }
+function mostrarToken() {
+    tokenAtual.textContent = token || 'nenhum (faca login para cadastrar, editar e excluir)';
 }
 
 async function verificarStatus() {
-    try {
-        const resposta = await fetch('/status');
-        const dados = await resposta.json();
-        statusServidor.className = dados.banco === 'conectado' ? 'online' : 'offline';
-        statusServidor.textContent =
-            `Servidor: ${dados.servidor} | Banco: ${dados.banco} | ` +
-            `Porta: ${dados.porta} | Uptime: ${dados.uptimeSegundos}s`;
-    }
-    catch(error) {
-        statusServidor.className = 'offline';
-        statusServidor.textContent = 'Servidor offline';
-    }
+    const resposta = await chamarApi('GET', '/status');
+    const dados = resposta.dados;
+
+    statusServidor.className = dados.banco === 'conectado' ? 'online' : 'offline';
+    statusServidor.textContent = resposta.ok
+        ? `Servidor: ${dados.servidor} | Banco: ${dados.banco} | Porta: ${dados.porta}`
+        : 'Servidor offline';
 }
 
-formLogin.addEventListener('submit', async (evento) => {
+document.getElementById('formLogin').addEventListener('submit', async (evento) => {
     evento.preventDefault();
 
-    const resposta = await fetch('/login', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-            usuario: document.getElementById('usuario').value,
-            senha: document.getElementById('senha').value
-        })
+    const resposta = await chamarApi('POST', '/login', {
+        usuario: document.getElementById('usuario').value,
+        senha: document.getElementById('senha').value
     });
 
-    const dados = await resposta.json();
-
-    if (!resposta.ok) {
-        const mensagem = dados.mensagem || 'Falha no login';
-        registrarResposta('POST', '/login', resposta, mensagem);
-        token = '';
-        localStorage.removeItem('token');
-        atualizarStatusLogin(`Erro ${resposta.status}: ${mensagem}`, false);
-        alert(`Erro ${resposta.status}: ${mensagem}`);
-        return;
+    if (resposta.ok) {
+        token = resposta.dados.token;
+        localStorage.setItem('token', token);
     }
-
-    token = dados.token;
-    localStorage.setItem('token', token);
-    registrarResposta('POST', '/login', resposta, 'Token gerado');
-    atualizarStatusLogin(`Autenticado (${resposta.status} ${textosStatus[resposta.status]})`, true);
+    mostrarToken();
 });
 
 document.getElementById('sair').addEventListener('click', () => {
     token = '';
     localStorage.removeItem('token');
-    atualizarStatusLogin();
+    mostrarToken();
 });
 
-async function carregarAlunos() {
-    const resposta = await fetch('/alunos');
-    const alunos = await resposta.json();
+async function carregarTecnologias() {
+    const resposta = await chamarApi('GET', '/tecnologias');
+    if (!resposta.ok) return;
 
-    if (!resposta.ok) {
-        const mensagem = alunos.mensagem || 'Erro ao carregar alunos';
-        registrarResposta('GET', '/alunos', resposta, mensagem);
-        alert(`Erro ${resposta.status}: ${mensagem}`);
-        return;
-    }
+    tecnologiasCache = resposta.dados;
+    listaTecnologias.innerHTML = '';
 
-    registrarResposta('GET', '/alunos', resposta, `${alunos.length} aluno(s)`);
-    alunosCache = alunos;
-    listaAlunos.innerHTML = '';
-
-    alunos.forEach((aluno) => {
+    tecnologiasCache.forEach((tecnologia) => {
         const linha = document.createElement('tr');
 
         const colunaNome = document.createElement('td');
-        colunaNome.textContent = aluno.nome;
+        colunaNome.textContent = tecnologia.nome;
 
-        const colunaCurso = document.createElement('td');
-        colunaCurso.textContent = aluno.curso;
+        const colunaBase = document.createElement('td');
+        colunaBase.textContent = tecnologia.base;
+
+        const colunaCurva = document.createElement('td');
+        colunaCurva.textContent = tecnologia.curvaAprendizado;
 
         const colunaAcoes = document.createElement('td');
 
         const botaoEditar = document.createElement('button');
         botaoEditar.textContent = 'Editar';
-        botaoEditar.className = 'acao';
-        botaoEditar.disabled = !token;
-        botaoEditar.addEventListener('click', () => editarAluno(aluno._id));
+        botaoEditar.addEventListener('click', () => editarTecnologia(tecnologia._id));
 
         const botaoExcluir = document.createElement('button');
         botaoExcluir.textContent = 'Excluir';
-        botaoExcluir.className = 'acao';
-        botaoExcluir.disabled = !token;
-        botaoExcluir.addEventListener('click', () => excluirAluno(aluno._id));
+        botaoExcluir.addEventListener('click', () => excluirTecnologia(tecnologia._id));
 
         colunaAcoes.append(botaoEditar, botaoExcluir);
-        linha.append(colunaNome, colunaCurso, colunaAcoes);
-        listaAlunos.appendChild(linha);
+        linha.append(colunaNome, colunaBase, colunaCurva, colunaAcoes);
+        listaTecnologias.appendChild(linha);
     });
 }
 
-formAluno.addEventListener('submit', async (evento) => {
+// Salvar: POST se for nova, PUT se estiver editando
+document.getElementById('formTecnologia').addEventListener('submit', async (evento) => {
     evento.preventDefault();
 
-    if (!token) {
-        alert('Faca login antes de salvar.');
-        return;
-    }
-
-    const dadosAluno = {
+    const dados = {
         nome: nome.value,
-        curso: curso.value
+        base: base.value,
+        curvaAprendizado: curvaAprendizado.value
     };
 
-    const id = alunoId.value;
+    const id = tecnologiaId.value;
     const metodo = id ? 'PUT' : 'POST';
-    const url = id ? `/alunos/${id}` : '/alunos';
+    const url = id ? `/tecnologias/${id}` : '/tecnologias';
 
-    const resposta = await fetch(url, {
-        method: metodo,
-        headers: cabecalhosProtegidos(),
-        body: JSON.stringify(dadosAluno)
-    });
+    const resposta = await chamarApi(metodo, url, dados);
 
-    const dados = await resposta.json();
-
-    if (!resposta.ok) {
-        const mensagem = dados.mensagem || 'Erro ao salvar';
-        registrarResposta(metodo, url, resposta, mensagem);
-        tratarNaoAutorizado(resposta, mensagem);
-        alert(`Erro ${resposta.status}: ${mensagem}`);
-        return;
+    if (resposta.ok) {
+        limparFormulario();
+        carregarTecnologias();
     }
-
-    limparFormulario();
-    await carregarAlunos();
-    registrarResposta(metodo, url, resposta, id ? 'Aluno atualizado' : 'Aluno cadastrado');
 });
 
-function editarAluno(id) {
-    if (!token) {
-        alert('Faca login antes de editar.');
-        return;
-    }
+function editarTecnologia(id) {
+    const tecnologia = tecnologiasCache.find((item) => item._id === id);
+    if (!tecnologia) return;
 
-    const aluno = alunosCache.find((item) => item._id === id);
-    if (!aluno) return;
-
-    alunoId.value = aluno._id;
-    nome.value = aluno.nome;
-    curso.value = aluno.curso;
+    tecnologiaId.value = tecnologia._id;
+    nome.value = tecnologia.nome;
+    base.value = tecnologia.base;
+    curvaAprendizado.value = tecnologia.curvaAprendizado;
+    tituloForm.textContent = `Editando: ${tecnologia.nome}`;
 }
 
-async function excluirAluno(id) {
-    if (!token) {
-        alert('Faca login antes de excluir.');
-        return;
-    }
+async function excluirTecnologia(id) {
+    if (!confirm('Deseja realmente excluir esta tecnologia?')) return;
 
-    const confirmou = confirm('Deseja realmente excluir este aluno?');
-    if (!confirmou) return;
-
-    const url = `/alunos/${id}`;
-    const resposta = await fetch(url, {
-        method: 'DELETE',
-        headers: {
-            'Authorization': `Bearer ${token}`
-        }
-    });
-
-    const dados = await resposta.json();
-
-    if (!resposta.ok) {
-        const mensagem = dados.mensagem || 'Erro ao excluir';
-        registrarResposta('DELETE', url, resposta, mensagem);
-        tratarNaoAutorizado(resposta, mensagem);
-        alert(`Erro ${resposta.status}: ${mensagem}`);
-        return;
-    }
-
-    await carregarAlunos();
-    registrarResposta('DELETE', url, resposta, dados.mensagem);
+    const resposta = await chamarApi('DELETE', `/tecnologias/${id}`);
+    if (resposta.ok) carregarTecnologias();
 }
 
 function limparFormulario() {
-    alunoId.value = '';
+    tecnologiaId.value = '';
     nome.value = '';
-    curso.value = '';
+    base.value = '';
+    curvaAprendizado.value = '';
+    tituloForm.textContent = 'Nova tecnologia';
 }
 
-document
-    .getElementById('cancelarEdicao')
-    .addEventListener('click', limparFormulario);
+document.getElementById('cancelarEdicao').addEventListener('click', limparFormulario);
+document.getElementById('recarregar').addEventListener('click', carregarTecnologias);
+document.getElementById('verificarStatus').addEventListener('click', verificarStatus);
+document.getElementById('limparLog').addEventListener('click', () => { log.innerHTML = ''; });
 
-document
-    .getElementById('recarregar')
-    .addEventListener('click', carregarAlunos);
-
-document
-    .getElementById('verificarStatus')
-    .addEventListener('click', verificarStatus);
-
-atualizarStatusLogin();
+mostrarToken();
 verificarStatus();
-carregarAlunos();
+carregarTecnologias();

@@ -1,0 +1,155 @@
+{
+  "info": {
+    "name": "API Tecnologias",
+    "description": "1) Rode a API (npm start). 2) Em Variables, coloque usuario e senha iguais ao ADMIN_USER e ADMIN_PASSWORD do .env. 3) Rode o Login primeiro: o token e salvo sozinho. 4) Rode o Cadastrar: o id e salvo sozinho para Buscar, Atualizar e Excluir.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3003" },
+    { "key": "usuario", "value": "seu_usuario" },
+    { "key": "senha", "value": "sua_senha" },
+    { "key": "token", "value": "" },
+    { "key": "id", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "1 - Status do servidor",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/status"
+      }
+    },
+    {
+      "name": "2 - Login (salva o token)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "if (pm.response.code === 200) {",
+              "    pm.collectionVariables.set('token', pm.response.json().token);",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "auth": { "type": "noauth" },
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"usuario\": \"{{usuario}}\",\n    \"senha\": \"{{senha}}\"\n}"
+        },
+        "url": "{{baseUrl}}/login"
+      }
+    },
+    {
+      "name": "3 - Listar tecnologias",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/tecnologias"
+      }
+    },
+    {
+      "name": "4 - Cadastrar tecnologia (POST, salva o id)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "if (pm.response.code === 201) {",
+              "    pm.collectionVariables.set('id', pm.response.json()._id);",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"nome\": \"Vue\",\n    \"base\": \"JS\",\n    \"curvaAprendizado\": 2\n}"
+        },
+        "url": "{{baseUrl}}/tecnologias"
+      }
+    },
+    {
+      "name": "5 - Buscar por ID",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/tecnologias/{{id}}"
+      }
+    },
+    {
+      "name": "6 - Atualizar tecnologia (PUT)",
+      "request": {
+        "method": "PUT",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"nome\": \"Vue\",\n    \"base\": \"JS\",\n    \"curvaAprendizado\": 3\n}"
+        },
+        "url": "{{baseUrl}}/tecnologias/{{id}}"
+      }
+    },
+    {
+      "name": "7 - Excluir tecnologia (DELETE)",
+      "request": {
+        "method": "DELETE",
+        "url": "{{baseUrl}}/tecnologias/{{id}}"
+      }
+    },
+    {
+      "name": "ERRO 401 - Cadastrar sem token",
+      "request": {
+        "auth": { "type": "noauth" },
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"nome\": \"Angular\",\n    \"base\": \"JS\",\n    \"curvaAprendizado\": 6\n}"
+        },
+        "url": "{{baseUrl}}/tecnologias"
+      }
+    },
+    {
+      "name": "ERRO 400 - Cadastrar com campos vazios",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"nome\": \"\",\n    \"base\": \"\",\n    \"curvaAprendizado\": 0\n}"
+        },
+        "url": "{{baseUrl}}/tecnologias"
+      }
+    },
+    {
+      "name": "ERRO 404 - Buscar ID que nao existe",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/tecnologias/000000000000000000000000"
+      }
+    },
+    {
+      "name": "ERRO 409 - Cadastrar nome repetido",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"nome\": \"React\",\n    \"base\": \"JS\",\n    \"curvaAprendizado\": 3\n}"
+        },
+        "url": "{{baseUrl}}/tecnologias"
+      }
+    }
+  ]
+}

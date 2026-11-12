@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CRUD de Alunos</title>
+    <title>CRUD de Tecnologias</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <main class="container">
-        <h1>CRUD de Alunos</h1>
+        <h1>CRUD de Tecnologias</h1>
 
         <section class="card">
             <div class="titulo-lista">
@@ -26,22 +26,17 @@
                 <button type="submit">Entrar</button>
                 <button type="button" id="sair">Sair</button>
             </form>
-            <p id="statusLogin">Nao autenticado</p>
             <p><strong>Token:</strong></p>
             <code id="tokenAtual">nenhum</code>
         </section>
 
         <section class="card">
-            <h2>Ultima resposta da API</h2>
-            <p id="ultimaResposta">Nenhuma requisicao ainda</p>
-        </section>
-
-        <section class="card">
-            <h2>Aluno</h2>
-            <form id="formAluno">
-                <input type="hidden" id="alunoId">
-                <input id="nome" placeholder="Nome" required>
-                <input id="curso" placeholder="Curso" required>
+            <h2 id="tituloForm">Nova tecnologia</h2>
+            <form id="formTecnologia">
+                <input type="hidden" id="tecnologiaId">
+                <input id="nome" placeholder="Nome (ex: React)">
+                <input id="base" placeholder="Base (ex: JS, PHP, C#)">
+                <input id="curvaAprendizado" type="number" placeholder="Curva de aprendizado (meses)">
                 <button type="submit">Salvar</button>
                 <button type="button" id="cancelarEdicao">Cancelar</button>
             </form>
@@ -49,19 +44,28 @@
 
         <section class="card">
             <div class="titulo-lista">
-                <h2>Alunos cadastrados</h2>
+                <h2>Tecnologias cadastradas</h2>
                 <button id="recarregar">Recarregar</button>
             </div>
             <table>
                 <thead>
                     <tr>
                         <th>Nome</th>
-                        <th>Curso</th>
+                        <th>Base</th>
+                        <th>Curva (meses)</th>
                         <th>Acoes</th>
                     </tr>
                 </thead>
-                <tbody id="listaAlunos"></tbody>
+                <tbody id="listaTecnologias"></tbody>
             </table>
+        </section>
+
+        <section class="card">
+            <div class="titulo-lista">
+                <h2>Requisicoes (o que esta acontecendo)</h2>
+                <button id="limparLog">Limpar</button>
+            </div>
+            <ul id="log"></ul>
         </section>
     </main>
     <script src="app.js"></script>

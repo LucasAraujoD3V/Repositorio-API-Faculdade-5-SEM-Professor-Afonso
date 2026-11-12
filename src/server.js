@@ -4,8 +4,7 @@ const express = require('express');
 const jwt = require('jsonwebtoken');
 const mongoose = require('mongoose');
 const connectDatabase = require('./config/database');
-const Aluno = require('./models/Aluno');
-const verificarToken = require('./middlewares/auth');
+const tecnologiasRoutes = require('./routes/tecnologias');
 
 const app = express();
 const PORT = process.env.PORT || 3003;
@@ -47,76 +46,15 @@ app.post('/login', (req, res) => {
     res.status(200).json({ token });
 });
 
-app.get('/alunos', async (req, res) => {
-    try {
-        const alunos = await Aluno.find();
-        res.status(200).json(alunos);
-    }
-    catch(error) {
-        res.status(500).json({
-            mensagem: 'Erro ao buscar alunos.',
-            erro: error.message
-        });
-    }
-});
+// CRUD de tecnologias (rotas em src/routes/tecnologias.js)
+app.use('/tecnologias', tecnologiasRoutes);
 
-app.post('/alunos', verificarToken, async (req, res) => {
-    try {
-        const novoAluno = await Aluno.create(req.body);
-        res.status(201).json(novoAluno);
-    }
-    catch(error) {
-        res.status(400).json({
-            mensagem: 'Nao foi possivel cadastrar o aluno.',
-            erro: error.message
-        });
-    }
-});
-
-app.put('/alunos/:id', verificarToken, async (req, res) => {
-    try {
-        const alunoAtualizado = await Aluno.findByIdAndUpdate(
-            req.params.id,
-            req.body,
-            { returnDocument: 'after', runValidators: true }
-        );
-
-        if (!alunoAtualizado) {
-            return res.status(404).json({
-                mensagem: 'Aluno nao encontrado.'
-            });
-        }
-
-        res.status(200).json(alunoAtualizado);
-    }
-    catch(error) {
-        res.status(400).json({
-            mensagem: 'Nao foi possivel atualizar o aluno.',
-            erro: error.message
-        });
-    }
-});
-
-app.delete('/alunos/:id', verificarToken, async (req, res) => {
-    try {
-        const alunoRemovido = await Aluno.findByIdAndDelete(req.params.id);
-
-        if (!alunoRemovido) {
-            return res.status(404).json({
-                mensagem: 'Aluno nao encontrado.'
-            });
-        }
-
-        res.status(200).json({
-            mensagem: 'Aluno excluido com sucesso.'
-        });
-    }
-    catch(error) {
-        res.status(400).json({
-            mensagem: 'Nao foi possivel excluir o aluno.',
-            erro: error.message
-        });
-    }
+// JSON mal formatado ou erro inesperado -> responde em JSON
+app.use((error, req, res, next) => {
+    res.status(error.status || 500).json({
+        mensagem: 'JSON invalido ou erro no servidor.',
+        erro: error.message
+    });
 });
 
 async function startServer() {
